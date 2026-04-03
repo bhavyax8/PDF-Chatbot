@@ -15,7 +15,8 @@ def get_embeddings():
             openai_api_key=os.getenv("OPENAI_API_KEY")
         )
 
-    elif provider == "gemini":
+    elif provider in ("gemini", "groq"):
+        # Groq has no embeddings API — both use Google embeddings
         print("[Embeddings] Using Google Gemini embeddings (free)")
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
         return GoogleGenerativeAIEmbeddings(
@@ -23,17 +24,7 @@ def get_embeddings():
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
 
-    elif provider == "groq":
-        # Groq has no embeddings API — use Gemini as fallback
-        print("[Embeddings] Groq has no embeddings — using Gemini embeddings")
-        from langchain_google_genai import GoogleGenerativeAIEmbeddings
-        return GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
-            google_api_key=os.getenv("GOOGLE_API_KEY")
-        )
-
     else:
-        # huggingface / local — use lightweight local model
         print("[Embeddings] Using local sentence-transformers")
         from langchain_huggingface import HuggingFaceEmbeddings
         return HuggingFaceEmbeddings(
