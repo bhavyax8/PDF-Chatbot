@@ -18,7 +18,7 @@ def get_llm(provider: str = None):
     elif provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             convert_system_message_to_human=True
@@ -26,7 +26,7 @@ def get_llm(provider: str = None):
     elif provider == "groq":
         from langchain_groq import ChatGroq
         return ChatGroq(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             temperature=0.1,
             groq_api_key=os.getenv("GROQ_API_KEY")
         )
