@@ -1,7 +1,13 @@
-# start.py — reads PORT from environment and starts uvicorn properly
+# start.py
 import os
 import uvicorn
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("api.main:app", host="0.0.0.0", port=port)
+    print(f"Starting server on port {port}...")
+    uvicorn.run(
+        "api.main:app",
+        host="0.0.0.0",
+        port=port,
+        timeout_keep_alive=120
+    )
