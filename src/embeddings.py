@@ -16,12 +16,12 @@ def get_embeddings():
         )
 
     elif provider in ("gemini", "groq"):
-        # Groq has no embeddings API — both use Google embeddings
         print("[Embeddings] Using Google Gemini embeddings (free)")
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
         return GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+        model="text-embedding-004",   
+        google_api_key=os.getenv("GOOGLE_API_KEY")
         )
 
     else:
