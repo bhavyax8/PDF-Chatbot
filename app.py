@@ -1,11 +1,21 @@
-# app.py — Modern UI with PDF preview, typing animation, timestamps
-
+# app.py
 import streamlit as st
 import httpx
 import base64
 import datetime
+import os
+from dotenv import load_dotenv
 
-API_URL = "http://localhost:8000"
+load_dotenv()
+
+# Works both locally (.env file) and on Streamlit Cloud (st.secrets)
+def get_secret(key):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key, "")
+
+API_URL = get_secret("API_URL") or "http://localhost:8000"
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
