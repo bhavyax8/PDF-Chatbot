@@ -219,10 +219,10 @@ for key, val in {
     "messages": [],
     "pdf_name": None,
     "pdf_bytes": None,
+    "provider": "gemini",
+    "is_typing": False,
     "pdf_page": 1,
     "pdf_total_pages": 1,
-    "provider": "gemini",
-    "is_typing": False
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -232,20 +232,15 @@ def now():
     return datetime.datetime.now().strftime("%I:%M %p")
 
 # ── Helper: render PDF page as image ──────────────────────────────────────────
-def render_pdf_preview(pdf_bytes, page_num):
-    """Converts a PDF page to an image for preview using PyMuPDF."""
+def get_pdf_page_count(pdf_bytes):
+    """Get total pages using pypdf — no system dependencies needed."""
     try:
-        import fitz  # PyMuPDF
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        total = len(doc)
-        page = doc[page_num - 1]
-        mat = fitz.Matrix(1.5, 1.5)   # 1.5x zoom for clarity
-        pix = page.get_pixmap(matrix=mat)
-        img_bytes = pix.tobytes("png")
-        doc.close()
-        return img_bytes, total
-    except ImportError:
-        return None, 1
+        import io
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        return len(reader.pages)
+    except Exception:
+        return 1
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -254,7 +249,7 @@ with st.sidebar:
 
     # API health check
     try:
-        r = httpx.get(f"{API_URL}/", timeout=3)
+        r = httpx.get(f"{API_URL}/", timeout=30)
         st.success("✅ API connected")
     except Exception:
         st.error("❌ Start FastAPI first:\nuvicorn api.main:app --reload")
@@ -310,18 +305,15 @@ with st.sidebar:
                 httpx.delete(f"{API_URL}/reset")
 
                 # Get total pages
-                try:
-                    import fitz
-                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    st.session_state.pdf_total_pages = len(doc)
-                    doc.close()
-                except Exception:
-                    st.session_state.pdf_total_pages = 1
+                st.session_state.pdf_total_pages = get_pdf_page_count(pdf_bytes)
 
                 st.success(f"✅ {data['chunks']} chunks indexed")
             else:
-                st.error(resp.json().get("detail", "Ingestion failed"))
-
+                try:
+                    detail = resp.json().get("detail", "Ingestion failed")
+                except Exception:
+                    detail = f"Server error (status {resp.status_code}). API may be waking up — try again in 30 seconds."
+                st.error(detail)
     if st.session_state.pdf_name:
         st.markdown(
             f'<div class="model-card">'
@@ -349,57 +341,24 @@ with col_pdf:
                 unsafe_allow_html=True)
 
     if st.session_state.pdf_bytes:
-        img, total = render_pdf_preview(
-            st.session_state.pdf_bytes,
-            st.session_state.pdf_page
+        # Embed PDF directly as base64 iframe — no system libs needed
+        b64 = base64.b64encode(st.session_state.pdf_bytes).decode()
+        st.markdown(
+            f'<iframe src="data:application/pdf;base64,{b64}" '
+            f'width="100%" height="500px" style="border-radius:10px;'
+            f'border:1px solid rgba(255,255,255,0.1);"></iframe>',
+            unsafe_allow_html=True
         )
 
-        if img:
-            st.image(img, use_container_width=True)
-        else:
-            # Fallback: embed PDF directly if PyMuPDF not installed
-            b64 = base64.b64encode(st.session_state.pdf_bytes).decode()
-            st.markdown(
-                f'<iframe src="data:application/pdf;base64,{b64}" '
-                f'width="100%" height="500px" style="border-radius:10px;'
-                f'border:none;"></iframe>',
-                unsafe_allow_html=True
-            )
-
-        # Page navigation
-        total = st.session_state.pdf_total_pages
-        c1, c2, c3 = st.columns([1, 2, 1])
-        with c1:
-            if st.button("◀", key="prev_page"):
-                if st.session_state.pdf_page > 1:
-                    st.session_state.pdf_page -= 1
-                    st.rerun()
-        with c2:
-            st.markdown(
-                f'<p style="text-align:center;color:rgba(255,255,255,0.6);'
-                f'font-size:13px;margin-top:6px;">'
-                f'Page {st.session_state.pdf_page} of {total}</p>',
-                unsafe_allow_html=True
-            )
-        with c3:
-            if st.button("▶", key="next_page"):
-                if st.session_state.pdf_page < total:
-                    st.session_state.pdf_page += 1
-                    st.rerun()
-
-        # Jump to source page when answer arrives
+        # Source page indicator
         if st.session_state.messages:
             last = st.session_state.messages[-1]
             if last["role"] == "assistant" and last.get("sources"):
-                first_src = last["sources"][0]
                 st.markdown(
-                    f'<div class="source-badge">📖 Answer from pages '
-                    f'{last["sources"]}</div>',
+                    f'<div class="source-badge" style="margin-top:10px;">📖 '
+                    f'Answer from pages {last["sources"]}</div>',
                     unsafe_allow_html=True
                 )
-                if st.button(f"Jump to page {first_src}"):
-                    st.session_state.pdf_page = first_src
-                    st.rerun()
     else:
         st.markdown(
             '<div style="text-align:center;padding:80px 20px;'
@@ -499,9 +458,13 @@ with col_chat:
                     "time": now()
                 })
             else:
+                try:
+                    detail = resp.json().get('detail', 'Unknown error')
+                except Exception:
+                    detail = f"Server error (status {resp.status_code}). Try again."
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": f"⚠️ Error: {resp.json().get('detail','Unknown error')}",
+                    "content": f"⚠️ Error: {detail}",
                     "time": now()
                 })
 
