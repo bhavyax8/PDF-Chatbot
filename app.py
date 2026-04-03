@@ -340,24 +340,35 @@ with col_pdf:
                 unsafe_allow_html=True)
 
     if st.session_state.pdf_bytes:
-        # Embed PDF directly as base64 iframe — no system libs needed
-        b64 = base64.b64encode(st.session_state.pdf_bytes).decode()
+        # Download button (Chrome blocks base64 iframes)
+        st.download_button(
+            label="⬇️ Download PDF",
+            data=st.session_state.pdf_bytes,
+            file_name=st.session_state.pdf_name,
+            mime="application/pdf",
+            use_container_width=True
+        )
+
+        # Page info
         st.markdown(
-            f'<iframe src="data:application/pdf;base64,{b64}" '
-            f'width="100%" height="500px" style="border-radius:10px;'
-            f'border:1px solid rgba(255,255,255,0.1);"></iframe>',
+            f'<div style="text-align:center;padding:20px;'
+            f'color:rgba(255,255,255,0.5);font-size:13px;">'
+            f'📄 {st.session_state.pdf_name}<br>'
+            f'{st.session_state.pdf_total_pages} pages loaded</div>',
             unsafe_allow_html=True
         )
 
-        # Source page indicator
+        # Source indicator
         if st.session_state.messages:
             last = st.session_state.messages[-1]
             if last["role"] == "assistant" and last.get("sources"):
                 st.markdown(
-                    f'<div class="source-badge" style="margin-top:10px;">📖 '
+                    f'<div class="source-badge" style="margin-top:10px;'
+                    f'display:block;text-align:center;">📖 '
                     f'Answer from pages {last["sources"]}</div>',
                     unsafe_allow_html=True
                 )
+
     else:
         st.markdown(
             '<div style="text-align:center;padding:80px 20px;'
