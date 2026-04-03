@@ -288,7 +288,6 @@ with st.sidebar:
     st.markdown('<div class="section-title">Upload PDF</div>',
                 unsafe_allow_html=True)
     uploaded = st.file_uploader("Upload PDF", type=["pdf"], label_visibility="collapsed")
-
     if uploaded:
         pdf_bytes = uploaded.read()
         if st.session_state.pdf_name != uploaded.name:
